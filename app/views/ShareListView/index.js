@@ -27,6 +27,7 @@ import { withTheme } from '../../theme';
 import SafeAreaView from '../../containers/SafeAreaView';
 import RocketChat from '../../lib/rocketchat';
 import { sanitizeLikeString } from '../../lib/database/utils';
+import { showErrorAlert } from '../../utils/info';
 
 const permission = {
 	title: I18n.t('Read_External_Permission'),
@@ -69,24 +70,31 @@ class ShareListView extends React.Component {
 		const { server } = this.props;
 		try {
 			const data = await ShareExtension.data();
+      console.log('ShareListView -> componentDidMount -> data', data);
 			if (isAndroid) {
 				await this.askForPermission(data);
 			}
 			const info = await Promise.all(data.filter(item => item.type === 'media').map(file => FileSystem.getInfoAsync(this.uriToPath(file.value), { size: true })));
-			const attachments = info.map(file => ({
+			// const info = await Promise.all(data.filter(item => item.type === 'media').map(file => FileSystem.getInfoAsync(file.value, { size: true })));
+      console.log('ShareListView -> componentDidMount -> info', info);
+
+			const attachments = info.map(file => file && ({
 				filename: file.uri.substring(file.uri.lastIndexOf('/') + 1),
 				description: '',
 				size: file.size,
 				mime: mime.lookup(file.uri),
 				path: file.uri
 			}));
+      console.log('ShareListView -> componentDidMount -> attachments', attachments);
 			const text = data.filter(item => item.type === 'text').reduce((acc, item) => `${ item.value }\n${ acc }`, '');
 			this.setState({
 				text,
 				attachments
 			});
-		} catch {
-			// Do nothing
+		} catch (e) {
+			alert(e)
+			// TODO: add this error
+			// showErrorAlert('there was an error while fetching this media', 'oops', () => ShareExtension.close())
 		}
 
 		this.getSubscriptions(server);
@@ -247,7 +255,7 @@ class ShareListView extends React.Component {
 		return Promise.resolve();
 	}
 
-	uriToPath = uri => decodeURIComponent(isIOS ? uri.replace(/^file:\/\//, '') : uri);
+	uriToPath = uri => decodeURIComponent(isIOS ? uri.replace(/^file:\/\//, '') : `file://${ uri }`);
 
 	getRoomTitle = (item) => {
 		const { serverInfo } = this.state;
